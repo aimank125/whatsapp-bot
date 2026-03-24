@@ -229,18 +229,20 @@ app.post("/webhook", async (req, res) => {
     }
 
     // CARD SERVICES MENU LIST HANDLER
-    else if (user.step === "CARD_SERVICES_MENU" && listId) {
-      if (listId === "card_block" || listId === "card_limit" || listId === "card_replace") {
-        user.step = "ASK_NAME";
+    else if (user.step === "CARD_SERVICES_MENU") {
+      const serviceId = buttonId || listId;
+
+      if (serviceId === "card_block" || serviceId === "card_limit" || serviceId === "card_replace") {
+        user.step = "ASK_NAME"; // start lead flow
         reply = { text: { body: "Please enter your name to proceed with this service:" } };
-      } else if (listId === "main_menu") {
+      } else if (serviceId === "main_menu") {
         user.step = "MAIN";
         reply = mainMenu;
       }
     }
 
-    // FALLBACK
-    if (!reply) reply = mainMenu;
+    // FALLBACK (only if user.step not set)
+    if (!reply && !user.step) reply = mainMenu;
 
     // SEND MESSAGE
     await axios.post(
