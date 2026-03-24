@@ -88,9 +88,8 @@ app.post("/webhook", async (req, res) => {
     const user = users[from];
 
     // WhatsApp credentials
-    const PHONE_NUMBER_ID = "1025981437265997";
-    const ACCESS_TOKEN = "EAAOOYEWWHIQBRP8IReL9pnartUM0ZAkiQvIgnFiUOVxIUBTQzN5CRQQ6E7weWFG464pq9Nmf73iUSMWEum4oqBlaZBObezkenexjXE4oZAl3SddZAqNAl2tcjtBZBZCongLCdrDjyGXsh1MTZCkNyHEp2YPtkbqQhCO4k8zZChPfsZCmac0IbgwwYnSRINke6Kzp7s7fNJzc6eggiUH0lSJOZBDYrz1jBCVfAGWChKCXqEgQzgqZCP03QPS00DEt67JC2OxvIfOqxV827qQMHXY5bRw"; // 🔑 Keep the same
-
+    const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+    const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
     let reply;
 
     // GLOBAL COMMANDS
