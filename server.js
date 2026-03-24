@@ -3,7 +3,7 @@ const express = require("express");
 const axios = require("axios");
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // 🧠 User memory
@@ -90,8 +90,9 @@ app.post("/webhook", async (req, res) => {
     // WhatsApp credentials
     const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
     const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
+    const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
     let reply;
-
+    
     // GLOBAL COMMANDS
     if (input === "hi" || input === "start" || input === "main_menu") {
       user.step = "MAIN";
@@ -216,7 +217,7 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// START SERVER
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
