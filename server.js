@@ -45,12 +45,12 @@ const mainMenu = {
   }
 };
 
-// OTHER SERVICES MENU
-const otherServicesMenu = {
+// ACCOUNT SERVICES MENU
+const accountServicesMenu = {
   type: "interactive",
   interactive: {
     type: "list",
-    body: { text: "📋 Other Services" },
+    body: { text: "📋 Account Services" },
     action: {
       button: "Select Services",
       sections: [
@@ -62,6 +62,29 @@ const otherServicesMenu = {
             { id: "loan", title: "Loan Facilities" },
             { id: "remittance", title: "Remittance Services" },
             { id: "contact", title: "Talk to Agent" },
+            { id: "main_menu", title: "⬅ Main Menu" }
+          ]
+        }
+      ]
+    }
+  }
+};
+
+// CARD SERVICES MENU
+const cardServicesMenu = {
+  type: "interactive",
+  interactive: {
+    type: "list",
+    body: { text: "💳 Card Services" },
+    action: {
+      button: "Select Services",
+      sections: [
+        {
+          title: "Card Options",
+          rows: [
+            { id: "card_block", title: "Block Card" },
+            { id: "card_limit", title: "Increase Limit" },
+            { id: "card_replace", title: "Replace Card" },
             { id: "main_menu", title: "⬅ Main Menu" }
           ]
         }
@@ -90,9 +113,8 @@ app.post("/webhook", async (req, res) => {
     // WhatsApp credentials
     const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
     const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
-    const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
     let reply;
-    
+
     // GLOBAL COMMANDS
     if (input === "hi" || input === "start" || input === "main_menu") {
       user.step = "MAIN";
@@ -121,9 +143,16 @@ app.post("/webhook", async (req, res) => {
         };
       }
 
-      // ACCOUNT SERVICES / CARD SERVICES → Show Other Services menu
-      else if (input === "account_services" || input === "card_services") {
-        reply = otherServicesMenu;
+      // ACCOUNT SERVICES
+      else if (input === "account_services") {
+        user.step = "ACCOUNT_MENU";
+        reply = accountServicesMenu;
+      }
+
+      // CARD SERVICES
+      else if (input === "card_services") {
+        user.step = "CARD_SERVICES_MENU";
+        reply = cardServicesMenu;
       }
 
       else reply = mainMenu;
@@ -180,8 +209,8 @@ app.post("/webhook", async (req, res) => {
       };
     }
 
-    // LIST MENU HANDLER (Other Services clicks)
-    if (listId) {
+    // ACCOUNT MENU LIST HANDLER
+    else if (user.step === "ACCOUNT_MENU" && listId) {
       if (listId === "open_account") {
         user.step = "ASK_NAME";
         reply = { text: { body: "📝 Let's open your account!\n\nPlease enter your full name:" } };
@@ -193,6 +222,17 @@ app.post("/webhook", async (req, res) => {
         reply = { text: { body: "🌍 Remittance info\n\n(Type MAIN MENU)" } };
       } else if (listId === "contact") {
         reply = { text: { body: "📞 Connecting to agent...\n\n(Type MAIN MENU)" } };
+      } else if (listId === "main_menu") {
+        user.step = "MAIN";
+        reply = mainMenu;
+      }
+    }
+
+    // CARD SERVICES MENU LIST HANDLER
+    else if (user.step === "CARD_SERVICES_MENU" && listId) {
+      if (listId === "card_block" || listId === "card_limit" || listId === "card_replace") {
+        user.step = "ASK_NAME";
+        reply = { text: { body: "Please enter your name to proceed with this service:" } };
       } else if (listId === "main_menu") {
         user.step = "MAIN";
         reply = mainMenu;
