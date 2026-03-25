@@ -9,6 +9,18 @@ app.use(express.json());
 // 🧠 User memory
 let users = {};
 
+// 🧾 Service Name Mapping (for clean display)
+const serviceNames = {
+  open_account: "Open Digital Account",
+  rda_account: "Open RDA Account",
+  loan: "Loan Facilities",
+  remittance: "Remittance Services",
+  contact: "Talk to Agent",
+  card_block: "Block Card",
+  card_limit: "Increase Card Limit",
+  card_replace: "Replace Card"
+};
+
 // Test route
 app.get("/", (req, res) => {
   res.send("Advanced WhatsApp Bot Running 🚀");
@@ -33,7 +45,7 @@ const mainMenu = {
   interactive: {
     type: "button",
     body: {
-      text: "👋 Hello! I am Aiman Bot 🤖\nTyping out. Tapping in — to Smarter Banking\n\nChoose an option:"
+      text: "👋 Hello! I am Demo Bot 🤖\nTyping out. Tapping in — to Smarter Banking\n\nChoose an option:"
     },
     action: {
       buttons: [
@@ -93,7 +105,7 @@ const cardServicesMenu = {
   }
 };
 
-// WEBHOOK POST
+// WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
     const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -106,25 +118,21 @@ app.post("/webhook", async (req, res) => {
     const listId = message?.interactive?.list_reply?.id;
     const input = buttonId || listId || text;
 
-    // INIT USER
     if (!users[from]) users[from] = { step: "MAIN" };
     const user = users[from];
 
-    // WhatsApp credentials
     const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
     const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
     let reply;
 
-    // GLOBAL COMMANDS
+    // GLOBAL
     if (input === "hi" || input === "start" || input === "main_menu") {
       user.step = "MAIN";
       reply = mainMenu;
     }
 
-    // MAIN MENU LOGIC
+    // MAIN MENU
     else if (user.step === "MAIN") {
-
-      // CARD ACTIVATION
       if (input === "card_activation") {
         user.step = "CARD_MENU";
         reply = {
@@ -143,13 +151,11 @@ app.post("/webhook", async (req, res) => {
         };
       }
 
-      // ACCOUNT SERVICES
       else if (input === "account_services") {
         user.step = "ACCOUNT_MENU";
         reply = accountServicesMenu;
       }
 
-      // CARD SERVICES
       else if (input === "card_services") {
         user.step = "CARD_SERVICES_MENU";
         reply = cardServicesMenu;
@@ -158,7 +164,7 @@ app.post("/webhook", async (req, res) => {
       else reply = mainMenu;
     }
 
-    // CARD MENU
+    // CARD ACTIVATION
     else if (user.step === "CARD_MENU") {
       if (input === "credit_card" || input === "debit_card") {
         user.step = "ASK_CNIC";
@@ -166,85 +172,83 @@ app.post("/webhook", async (req, res) => {
       } else reply = mainMenu;
     }
 
-    // CNIC PLACEHOLDER
     else if (user.step === "ASK_CNIC") {
       user.step = "MAIN";
       reply = { text: { body: "❌ Unable to fetch details.\nPlease contact support.\n\nType MAIN MENU" } };
     }
 
-    // OPEN ACCOUNT FLOW → NAME
+    // ACCOUNT SERVICES → ALL COLLECT LEADS
+    else if (user.step === "ACCOUNT_MENU" && listId) {
+      if (listId !== "main_menu") {
+        user.selectedService = serviceNames[listId];
+        user.step = "ASK_NAME";
+        reply = { text: { body: "📝 Please enter your full name to proceed:" } };
+      } else {
+        user.step = "MAIN";
+        reply = mainMenu;
+      }
+    }
+
+    // CARD SERVICES → ALL COLLECT LEADS
+    else if (user.step === "CARD_SERVICES_MENU") {
+      const serviceId = buttonId || listId;
+
+      if (serviceId && serviceId !== "main_menu") {
+        user.selectedService = serviceNames[serviceId];
+        user.step = "ASK_NAME";
+        reply = { text: { body: "📝 Please enter your full name to proceed:" } };
+      } else {
+        user.step = "MAIN";
+        reply = mainMenu;
+      }
+    }
+
+    // LEAD FLOW
     else if (user.step === "ASK_NAME") {
       user.name = rawText;
       user.step = "ASK_EMAIL";
       reply = { text: { body: "📧 Please enter your email address:" } };
     }
 
-    // EMAIL
     else if (user.step === "ASK_EMAIL") {
       user.email = rawText;
       user.step = "ASK_PHONE";
       reply = { text: { body: "📱 Please enter your phone number:" } };
     }
 
-    // PHONE → Google Sheets
     else if (user.step === "ASK_PHONE") {
       user.phone = rawText;
       user.step = "MAIN";
 
-      // 🔥 Send to Google Sheets
       try {
         await axios.post(
           "https://script.google.com/macros/s/AKfycbzlw_lUnpcXUAbmGO_2NxNPUJinS8ZWNgsWruzBkM8iQbGWqxbKhtWi2SPIdCIMQtItrA/exec",
-          { name: user.name, email: user.email, phone: user.phone }
+          {
+            service: user.selectedService,
+            name: user.name,
+            email: user.email,
+            phone: user.phone
+          }
         );
-        console.log("NEW LEAD SAVED:", user);
-      } catch (gsErr) {
-        console.error("Google Sheets save error:", gsErr.message);
+      } catch (err) {
+        console.error("Google Sheets error:", err.message);
       }
 
       reply = {
         text: {
-          body: `✅ Account Request Submitted!\n\n👤 Name: ${user.name}\n📧 Email: ${user.email}\n📱 Phone: ${user.phone}\n\nOur team will contact you soon.`
+          body: `✅ Request Submitted!
+
+📌 Service: ${user.selectedService}
+👤 Name: ${user.name}
+📧 Email: ${user.email}
+📱 Phone: ${user.phone}
+
+Our team will contact you soon.`
         }
       };
     }
 
-    // ACCOUNT MENU LIST HANDLER
-    else if (user.step === "ACCOUNT_MENU" && listId) {
-      if (listId === "open_account") {
-        user.step = "ASK_NAME";
-        reply = { text: { body: "📝 Let's open your account!\n\nPlease enter your full name:" } };
-      } else if (listId === "rda_account") {
-        reply = { text: { body: "🌍 RDA Account info\n\n(Type MAIN MENU)" } };
-      } else if (listId === "loan") {
-        reply = { text: { body: "💰 Loan Facilities info\n\n(Type MAIN MENU)" } };
-      } else if (listId === "remittance") {
-        reply = { text: { body: "🌍 Remittance info\n\n(Type MAIN MENU)" } };
-      } else if (listId === "contact") {
-        reply = { text: { body: "📞 Connecting to agent...\n\n(Type MAIN MENU)" } };
-      } else if (listId === "main_menu") {
-        user.step = "MAIN";
-        reply = mainMenu;
-      }
-    }
-
-    // CARD SERVICES MENU LIST HANDLER
-    else if (user.step === "CARD_SERVICES_MENU") {
-      const serviceId = buttonId || listId;
-
-      if (serviceId === "card_block" || serviceId === "card_limit" || serviceId === "card_replace") {
-        user.step = "ASK_NAME"; // start lead flow
-        reply = { text: { body: "Please enter your name to proceed with this service:" } };
-      } else if (serviceId === "main_menu") {
-        user.step = "MAIN";
-        reply = mainMenu;
-      }
-    }
-
-    // FALLBACK (only if user.step not set)
-    if (!reply && !user.step) reply = mainMenu;
-
-    // SEND MESSAGE
+    // SEND
     await axios.post(
       `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
       { messaging_product: "whatsapp", to: from, ...reply },
@@ -259,7 +263,6 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
