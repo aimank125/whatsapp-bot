@@ -7,7 +7,7 @@ app.use(express.json());
 
 let users = {};
 
-// ✅ UPDATED SERVICES (REAL ESTATE)
+// ✅ SERVICES (REAL ESTATE)
 const serviceNames = {
   buy_property: "Buy Property",
   rent_property: "Rent Property",
@@ -20,6 +20,7 @@ app.get("/", (req, res) => {
 
 app.get("/webhook", (req, res) => {
   const VERIFY_TOKEN = "mysecuretoken123";
+
   if (
     req.query["hub.mode"] === "subscribe" &&
     req.query["hub.verify_token"] === VERIFY_TOKEN
@@ -27,10 +28,11 @@ app.get("/webhook", (req, res) => {
     console.log("WEBHOOK VERIFIED ✅");
     return res.status(200).send(req.query["hub.challenge"]);
   }
+
   res.sendStatus(403);
 });
 
-// ✅ UPDATED MAIN MENU
+// ✅ MAIN MENU
 const mainMenu = {
   type: "interactive",
   interactive: {
@@ -67,13 +69,13 @@ app.post("/webhook", async (req, res) => {
     const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
     let reply;
 
-    // ✅ START / MAIN MENU
+    // ✅ START
     if (input === "hi" || input === "start" || input === "main_menu") {
       user.step = "MAIN";
       reply = mainMenu;
     }
 
-    // ✅ MAIN FLOW (UPDATED)
+    // ✅ MAIN FLOW
     else if (user.step === "MAIN") {
       if (input === "buy_property" || input === "rent_property") {
         user.selectedService = serviceNames[input];
@@ -82,7 +84,7 @@ app.post("/webhook", async (req, res) => {
       }
 
       else if (input === "talk_agent") {
-        user.selectedService = "Talk to Agent";
+        user.selectedService = serviceNames.talk_agent;
         user.step = "ASK_NAME";
         reply = { text: { body: "📝 Please enter your full name:" } };
       }
@@ -92,7 +94,7 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // ✅ NEW STEPS (REAL ESTATE QUALIFICATION)
+    // ✅ QUALIFICATION FLOW
     else if (user.step === "ASK_LOCATION") {
       user.location = rawText;
       user.step = "ASK_BUDGET";
@@ -111,7 +113,7 @@ app.post("/webhook", async (req, res) => {
       reply = { text: { body: "📝 Please enter your full name:" } };
     }
 
-    // ✅ EXISTING FLOW (UNCHANGED)
+    // ✅ USER INFO FLOW
     else if (user.step === "ASK_NAME") {
       user.name = rawText;
       user.step = "ASK_EMAIL";
@@ -139,6 +141,7 @@ app.post("/webhook", async (req, res) => {
         user.phone = phone;
         user.step = "MAIN";
 
+        // ✅ GOOGLE SHEETS INTEGRATION (FIXED SAFE VERSION)
         try {
           await axios.post(
             "https://script.google.com/macros/s/AKfycbzlw_lUnpcXUAbmGO_2NxNPUJinS8ZWNgsWruzBkM8iQbGWqxbKhtWi2SPIdCIMQtItrA/exec",
@@ -147,9 +150,14 @@ app.post("/webhook", async (req, res) => {
               name: user.name,
               email: user.email,
               phone: user.phone,
-              location: user.location,
-              budget: user.budget,
-              propertyType: user.propertyType
+              location: user.location || "",
+              budget: user.budget || "",
+              propertyType: user.propertyType || ""
+            },
+            {
+              headers: {
+                "Content-Type": "application/json"
+              }
             }
           );
         } catch (err) {
@@ -175,10 +183,16 @@ Our agent will contact you shortly.`
       }
     }
 
+    // ✅ SEND MESSAGE
     await axios.post(
       `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
       { messaging_product: "whatsapp", to: from, ...reply },
-      { headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, "Content-Type": "application/json" } }
+      {
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
     );
 
     res.sendStatus(200);
