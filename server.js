@@ -7,19 +7,15 @@ app.use(express.json());
 
 let users = {};
 
+// ✅ UPDATED SERVICES (REAL ESTATE)
 const serviceNames = {
-  open_account: "Open Digital Account",
-  rda_account: "Open RDA Account",
-  loan: "Loan Facilities",
-  remittance: "Remittance Services",
-  contact: "Talk to Agent",
-  card_block: "Block Card",
-  card_limit: "Increase Card Limit",
-  card_replace: "Replace Card"
+  buy_property: "Buy Property",
+  rent_property: "Rent Property",
+  talk_agent: "Talk to Agent"
 };
 
 app.get("/", (req, res) => {
-  res.send("Advanced WhatsApp Bot Running 🚀");
+  res.send("Real Estate WhatsApp Bot Running 🚀");
 });
 
 app.get("/webhook", (req, res) => {
@@ -34,64 +30,19 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
+// ✅ UPDATED MAIN MENU
 const mainMenu = {
   type: "interactive",
   interactive: {
     type: "button",
     body: {
-      text: "👋 Hello! I am Demo Bot 🤖\nTyping out. Tapping in — to Smarter Banking\n\nChoose an option:"
+      text: "👋 Welcome!\nLooking for a property in UAE?\n\nChoose an option:"
     },
     action: {
       buttons: [
-        { type: "reply", reply: { id: "card_activation", title: "Card Activation" } },
-        { type: "reply", reply: { id: "account_services", title: "Account Services" } },
-        { type: "reply", reply: { id: "card_services", title: "Card Services" } }
-      ]
-    }
-  }
-};
-
-const accountServicesMenu = {
-  type: "interactive",
-  interactive: {
-    type: "list",
-    body: { text: "📋 Account Services" },
-    action: {
-      button: "Select Services",
-      sections: [
-        {
-          title: "Services",
-          rows: [
-            { id: "open_account", title: "Open Digital Account" },
-            { id: "rda_account", title: "Open RDA Account" },
-            { id: "loan", title: "Loan Facilities" },
-            { id: "remittance", title: "Remittance Services" },
-            { id: "contact", title: "Talk to Agent" },
-            { id: "main_menu", title: "⬅ Main Menu" }
-          ]
-        }
-      ]
-    }
-  }
-};
-
-const cardServicesMenu = {
-  type: "interactive",
-  interactive: {
-    type: "list",
-    body: { text: "💳 Card Services" },
-    action: {
-      button: "Select Services",
-      sections: [
-        {
-          title: "Card Options",
-          rows: [
-            { id: "card_block", title: "Block Card" },
-            { id: "card_limit", title: "Increase Limit" },
-            { id: "card_replace", title: "Replace Card" },
-            { id: "main_menu", title: "⬅ Main Menu" }
-          ]
-        }
+        { type: "reply", reply: { id: "buy_property", title: "🏠 Buy Property" } },
+        { type: "reply", reply: { id: "rent_property", title: "🏢 Rent Property" } },
+        { type: "reply", reply: { id: "talk_agent", title: "💬 Talk to Agent" } }
       ]
     }
   }
@@ -116,86 +67,57 @@ app.post("/webhook", async (req, res) => {
     const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
     let reply;
 
+    // ✅ START / MAIN MENU
     if (input === "hi" || input === "start" || input === "main_menu") {
       user.step = "MAIN";
       reply = mainMenu;
     }
 
+    // ✅ MAIN FLOW (UPDATED)
     else if (user.step === "MAIN") {
-      if (input === "card_activation") {
-        user.step = "CARD_MENU";
-        reply = {
-          type: "interactive",
-          interactive: {
-            type: "button",
-            body: { text: "💳 Card Activation\nSelect option:" },
-            action: {
-              buttons: [
-                { type: "reply", reply: { id: "credit_card", title: "Credit Card" } },
-                { type: "reply", reply: { id: "debit_card", title: "Debit Card" } },
-                { type: "reply", reply: { id: "main_menu", title: "⬅ Main Menu" } }
-              ]
-            }
-          }
-        };
+      if (input === "buy_property" || input === "rent_property") {
+        user.selectedService = serviceNames[input];
+        user.step = "ASK_LOCATION";
+        reply = { text: { body: "📍 Preferred location? (e.g., Dubai Marina)" } };
       }
 
-      else if (input === "account_services") {
-        user.step = "ACCOUNT_MENU";
-        reply = accountServicesMenu;
-      }
-
-      else if (input === "card_services") {
-        user.step = "CARD_SERVICES_MENU";
-        reply = cardServicesMenu;
-      }
-
-      else reply = mainMenu;
-    }
-
-    else if (user.step === "CARD_MENU") {
-      if (input === "credit_card" || input === "debit_card") {
-        user.step = "ASK_CNIC";
-        reply = { text: { body: "🔐 Please enter your CNIC number:\n\n(Type MAIN MENU anytime)" } };
-      } else reply = mainMenu;
-    }
-
-    else if (user.step === "ASK_CNIC") {
-      user.step = "MAIN";
-      reply = { text: { body: "❌ Unable to fetch details.\nPlease contact support.\n\nType MAIN MENU" } };
-    }
-
-    else if (user.step === "ACCOUNT_MENU" && listId) {
-      if (listId !== "main_menu") {
-        user.selectedService = serviceNames[listId];
+      else if (input === "talk_agent") {
+        user.selectedService = "Talk to Agent";
         user.step = "ASK_NAME";
-        reply = { text: { body: "📝 Please enter your full name to proceed:" } };
-      } else {
-        user.step = "MAIN";
+        reply = { text: { body: "📝 Please enter your full name:" } };
+      }
+
+      else {
         reply = mainMenu;
       }
     }
 
-    else if (user.step === "CARD_SERVICES_MENU") {
-      const serviceId = buttonId || listId;
-
-      if (serviceId && serviceId !== "main_menu") {
-        user.selectedService = serviceNames[serviceId];
-        user.step = "ASK_NAME";
-        reply = { text: { body: "📝 Please enter your full name to proceed:" } };
-      } else {
-        user.step = "MAIN";
-        reply = mainMenu;
-      }
+    // ✅ NEW STEPS (REAL ESTATE QUALIFICATION)
+    else if (user.step === "ASK_LOCATION") {
+      user.location = rawText;
+      user.step = "ASK_BUDGET";
+      reply = { text: { body: "💰 What is your budget?" } };
     }
 
+    else if (user.step === "ASK_BUDGET") {
+      user.budget = rawText;
+      user.step = "ASK_PROPERTY_TYPE";
+      reply = { text: { body: "🏠 Property type? (Apartment / Villa / Office)" } };
+    }
+
+    else if (user.step === "ASK_PROPERTY_TYPE") {
+      user.propertyType = rawText;
+      user.step = "ASK_NAME";
+      reply = { text: { body: "📝 Please enter your full name:" } };
+    }
+
+    // ✅ EXISTING FLOW (UNCHANGED)
     else if (user.step === "ASK_NAME") {
       user.name = rawText;
       user.step = "ASK_EMAIL";
       reply = { text: { body: "📧 Please enter your email address:" } };
     }
 
-    // ✅ FIXED EMAIL VALIDATION
     else if (user.step === "ASK_EMAIL") {
       const email = rawText;
 
@@ -208,7 +130,6 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // ✅ FIXED PHONE VALIDATION
     else if (user.step === "ASK_PHONE") {
       const phone = rawText;
 
@@ -225,7 +146,10 @@ app.post("/webhook", async (req, res) => {
               service: user.selectedService,
               name: user.name,
               email: user.email,
-              phone: user.phone
+              phone: user.phone,
+              location: user.location,
+              budget: user.budget,
+              propertyType: user.propertyType
             }
           );
         } catch (err) {
@@ -241,7 +165,11 @@ app.post("/webhook", async (req, res) => {
 📧 Email: ${user.email}
 📱 Phone: ${user.phone}
 
-Our team will contact you soon.`
+🏠 Type: ${user.propertyType || "-"}
+📍 Location: ${user.location || "-"}
+💰 Budget: ${user.budget || "-"}
+
+Our agent will contact you shortly.`
           }
         };
       }
